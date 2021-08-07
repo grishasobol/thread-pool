@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <chrono>
 
+// Its bad practice, but save my time =)
 using namespace std;
 
 template<class T, class R>
@@ -69,6 +70,17 @@ ThreadPool<T, R>::run_in_thread_pool( const vector<T>& args, R(*func)(T), int ma
     int res = sem_init( &ctx.sem, 0, max_treads_num);
     assert( res == 0 && "Could not create semaphore" );
 
+    /**
+     * Semaphore has value %max_threads_num in the begining.
+     * Before each thread starting we make blocking decrease of semaphore
+     * value (blocking if we try to make value negative).
+     * If decrease is done  then it's guarated that number of running threads which calcs %func
+     * is less then %max_threads_num, beacause thread increase semaphore after %func execution.
+     * Before running new thread we join one from %threads_idx_stack (each thread has idx and mapping is in %threads map).
+     * %threads_idx_stack is filled by thread which push there it's idx when it's finished %func calculation.
+     * So after join it's guaranted that number of running threads is less then %max_threads_num;
+     * All results are saved in %results_map in order to be able to return results in right ordering.
+     */
     int idx = 0;
     for ( auto arg : args )
     {
